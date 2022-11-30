@@ -68,7 +68,7 @@ class Install extends Command
         }
 
         $adminUsername = 'admin';
-        $adminPassword = Random::alnum(10);
+        $adminPassword = Config::get('app_debug') ? '123456' : Random::alnum(10);
         $adminEmail = 'admin@admin.com';
         $siteName = __('My Website');
 
@@ -169,9 +169,11 @@ class Install extends Command
         if (!preg_match("/^[\S]{6,16}$/", $adminPassword)) {
             throw new Exception(__('Please input correct password'));
         }
-        $weakPasswordArr = ['123456', '12345678', '123456789', '654321', '111111', '000000', 'password', 'qwerty', 'abc123', '1qaz2wsx'];
-        if (in_array($adminPassword, $weakPasswordArr)) {
-            throw new Exception(__('Password is too weak'));
+        if (!Config::get('app_debug')) {
+            $weakPasswordArr = ['123456', '12345678', '123456789', '654321', '111111', '000000', 'password', 'qwerty', 'abc123', '1qaz2wsx'];
+            if (in_array($adminPassword, $weakPasswordArr)) {
+                throw new Exception(__('Password is too weak'));
+            }
         }
         if ($siteName == '' || preg_match("/fast" . "admin/i", $siteName)) {
             throw new Exception(__('Please input correct website'));
@@ -231,16 +233,18 @@ class Install extends Command
             }
         }
 
-        // 设置新的Token随机密钥key
-        $oldTokenKey = config('token.key');
-        $newTokenKey = \fast\Random::alnum(32);
-        $coreConfigFile = CONF_PATH . 'config.php';
-        $coreConfigText = @file_get_contents($coreConfigFile);
-        $coreConfigText = preg_replace("/'key'(\s+)=>(\s+)'{$oldTokenKey}'/", "'key'\$1=>\$2'{$newTokenKey}'", $coreConfigText);
+        if (!Config::get('app_debug')) {
+            // 设置新的Token随机密钥key
+            $oldTokenKey = config('token.key');
+            $newTokenKey = \fast\Random::alnum(32);
+            $coreConfigFile = CONF_PATH . 'config.php';
+            $coreConfigText = @file_get_contents($coreConfigFile);
+            $coreConfigText = preg_replace("/'key'(\s+)=>(\s+)'{$oldTokenKey}'/", "'key'\$1=>\$2'{$newTokenKey}'", $coreConfigText);
 
-        $result = @file_put_contents($coreConfigFile, $coreConfigText);
-        if (!$result) {
-            throw new Exception(__('The current permissions are insufficient to write the file %s', 'application/config.php'));
+            $result = @file_put_contents($coreConfigFile, $coreConfigText);
+            if (!$result) {
+                throw new Exception(__('The current permissions are insufficient to write the file %s', 'application/config.php'));
+            }
         }
 
         $avatar = ($this->isExecute ? '' : request()->domain()) . '/assets/img/avatar.png';
@@ -260,8 +264,12 @@ class Install extends Command
         // 修改后台入口
         $adminName = '';
         if (is_file($adminFile)) {
-            $adminName = Random::alpha(10) . '.php';
-            rename($adminFile, ROOT_PATH . 'public' . DS . $adminName);
+            if (Config::get('app_debug')) {
+                $adminName = 'admin.php';
+            } else {
+                $adminName = Random::alpha(10) . '.php';
+                rename($adminFile, ROOT_PATH . 'public' . DS . $adminName);
+            }
         }
 
         //修改站点名称
@@ -290,11 +298,13 @@ class Install extends Command
             throw new Exception(__('The current permissions are insufficient to write the file %s', 'application/admin/command/Install/install.lock'));
         }
 
-        try {
-            //删除安装脚本
-            @unlink(ROOT_PATH . 'public' . DS . 'install.php');
-        } catch (\Exception $e) {
+        if (!Config::get('app_debug')) {
+            try {
+                //删除安装脚本
+                @unlink(ROOT_PATH . 'public' . DS . 'install.php');
+            } catch (\Exception $e) {
 
+            }
         }
 
         return $adminName;
