@@ -4,6 +4,7 @@ namespace app\admin\command;
 
 use fast\Random;
 use PDO;
+use think\Cache;
 use think\Config;
 use think\console\Command;
 use think\console\Input;
@@ -53,6 +54,7 @@ class Install extends Command
     {
         $this->isExecute = true;
         define('INSTALL_PATH', APP_PATH . 'admin' . DS . 'command' . DS . 'Install' . DS);
+        Lang::load(INSTALL_PATH . 'zh-cn.php');
         // 覆盖安装
         $force = $input->getOption('force');
         $hostname = $input->getOption('hostname');
@@ -273,23 +275,7 @@ class Install extends Command
         }
 
         //修改站点名称
-        if ($siteName != config('site.name')) {
-            $instance->name('config')->where('name', 'name')->update(['value' => $siteName]);
-            $siteConfigFile = CONF_PATH . 'extra' . DS . 'site.php';
-            $siteConfig = include $siteConfigFile;
-            $configList = $instance->name("config")->select();
-            foreach ($configList as $k => $value) {
-                if (in_array($value['type'], ['selects', 'checkbox', 'images', 'files'])) {
-                    $value['value'] = is_array($value['value']) ? $value['value'] : explode(',', $value['value']);
-                }
-                if ($value['type'] == 'array') {
-                    $value['value'] = (array)json_decode($value['value'], true);
-                }
-                $siteConfig[$value['name']] = $value['value'];
-            }
-            $siteConfig['name'] = $siteName;
-            file_put_contents($siteConfigFile, '<?php' . "\n\nreturn " . var_export_short($siteConfig) . ";\n");
-        }
+        $instance->name('config')->where('name', 'name')->update(['value' => $siteName]);
 
         $installLockFile = INSTALL_PATH . "install.lock";
         //检测能否成功写入lock文件
@@ -306,6 +292,8 @@ class Install extends Command
 
             }
         }
+
+        Cache::rm('site_config');
 
         return $adminName;
     }

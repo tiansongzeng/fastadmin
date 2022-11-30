@@ -2,6 +2,7 @@
 
 namespace app\common\model;
 
+use think\Cache;
 use think\Model;
 
 /**
@@ -205,22 +206,7 @@ class Config extends Model
         if (!\app\admin\library\Auth::instance()->check('general/config/edit')) {
             return false;
         }
-        $config = [];
-        $configList = self::all();
-        foreach ($configList as $k => $v) {
-            $value = $v->toArray();
-            if (in_array($value['type'], ['selects', 'checkbox', 'images', 'files'])) {
-                $value['value'] = explode(',', $value['value']);
-            }
-            if ($value['type'] == 'array') {
-                $value['value'] = (array)json_decode($value['value'], true);
-            }
-            $config[$value['name']] = $value['value'];
-        }
-        file_put_contents(
-            CONF_PATH . 'extra' . DS . 'site.php',
-            '<?php' . "\n\nreturn " . var_export_short($config) . ";\n"
-        );
+        Cache::rm('site_config');
         return true;
     }
 
