@@ -28,6 +28,8 @@ class Install extends Command
      */
     protected $request;
 
+    protected $isExecute = false;
+
     protected function configure()
     {
         $config = Config::get('database');
@@ -48,6 +50,7 @@ class Install extends Command
      */
     protected function execute(Input $input, Output $output)
     {
+        $this->isExecute = true;
         define('INSTALL_PATH', APP_PATH . 'admin' . DS . 'command' . DS . 'Install' . DS);
         // 覆盖安装
         $force = $input->getOption('force');
@@ -237,7 +240,7 @@ class Install extends Command
             throw new Exception(__('The current permissions are insufficient to write the file %s', 'application/config.php'));
         }
 
-        $avatar = request()->domain() . '/assets/img/avatar.png';
+        $avatar = ($this->isExecute ? '' : request()->domain()) . '/assets/img/avatar.png';
         // 变更默认管理员密码
         $adminPassword = $adminPassword ? $adminPassword : Random::alnum(8);
         $adminEmail = $adminEmail ? $adminEmail : "admin@admin.com";
