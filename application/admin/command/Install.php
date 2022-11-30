@@ -10,6 +10,7 @@ use think\console\Input;
 use think\console\input\Option;
 use think\console\Output;
 use think\Db;
+use think\Env;
 use think\Exception;
 use think\Lang;
 use think\Request;
@@ -209,23 +210,25 @@ class Install extends Command
         // 后台入口文件
         $adminFile = ROOT_PATH . 'public' . DS . 'admin.php';
 
-        // 数据库配置文件
-        $dbConfigFile = APP_PATH . 'database.php';
-        $dbConfigText = @file_get_contents($dbConfigFile);
-        $callback = function ($matches) use ($mysqlHostname, $mysqlHostport, $mysqlUsername, $mysqlPassword, $mysqlDatabase, $mysqlPrefix) {
-            $field = "mysql" . ucfirst($matches[1]);
-            $replace = $$field;
-            if ($matches[1] == 'hostport' && $mysqlHostport == 3306) {
-                $replace = '';
-            }
-            return "'{$matches[1]}'{$matches[2]}=>{$matches[3]}Env::get('database.{$matches[1]}', '{$replace}'),";
-        };
-        $dbConfigText = preg_replace_callback("/'(hostname|database|username|password|hostport|prefix)'(\s+)=>(\s+)Env::get\((.*)\)\,/", $callback, $dbConfigText);
+        if (Env::get('database.hostname') === null) {
+            // 数据库配置文件
+            $dbConfigFile = APP_PATH . 'database.php';
+            $dbConfigText = @file_get_contents($dbConfigFile);
+            $callback = function ($matches) use ($mysqlHostname, $mysqlHostport, $mysqlUsername, $mysqlPassword, $mysqlDatabase, $mysqlPrefix) {
+                $field = "mysql" . ucfirst($matches[1]);
+                $replace = $$field;
+                if ($matches[1] == 'hostport' && $mysqlHostport == 3306) {
+                    $replace = '';
+                }
+                return "'{$matches[1]}'{$matches[2]}=>{$matches[3]}Env::get('database.{$matches[1]}', '{$replace}'),";
+            };
+            $dbConfigText = preg_replace_callback("/'(hostname|database|username|password|hostport|prefix)'(\s+)=>(\s+)Env::get\((.*)\)\,/", $callback, $dbConfigText);
 
-        // 检测能否成功写入数据库配置
-        $result = @file_put_contents($dbConfigFile, $dbConfigText);
-        if (!$result) {
-            throw new Exception(__('The current permissions are insufficient to write the file %s', 'application/database.php'));
+            // 检测能否成功写入数据库配置
+            $result = @file_put_contents($dbConfigFile, $dbConfigText);
+            if (!$result) {
+                throw new Exception(__('The current permissions are insufficient to write the file %s', 'application/database.php'));
+            }
         }
 
         // 设置新的Token随机密钥key
